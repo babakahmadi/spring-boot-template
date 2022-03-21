@@ -1,0 +1,72 @@
+version: '3'
+services:
+  web:
+    environment:
+      - JAVA_OPTS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+      - SPRING_PROFILES_ACTIVE=dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: spring-template
+    ports:
+      - "8080:8080"
+      - "5005:5005"
+    networks:
+      - template-network
+    depends_on:
+      - mongodb
+    volumes:
+      - image:/web/
+  prometheus:
+    image: prom/prometheus:v2.34.0
+    container_name: prometheus
+    hostname: prometheus
+    volumes:
+      - ./env/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - 9090:9090
+    networks:
+      - template-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  grafana:
+    image: grafana/grafana:8.4.4
+    container_name: grafana
+    hostname: grafana
+    ports:
+      - 3000:3000
+    volumes:
+      - grafana_data:/var/lib/grafana
+    env_file:
+      - ./env/grafana.env
+    networks:
+      - template-network
+  mongodb:
+    image: docker.io/bitnami/mongodb:4.4
+    container_name: mongo
+    hostname: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - 'mongodb_data:/bitnami/mongodb'
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+      - MONGODB_EXTRA_FLAGS=--wiredTigerCacheSizeGB=2
+      - MONGO_INITDB_ROOT_USERNAME=template
+      - MONGO_INITDB_ROOT_PASSWORD=template
+    networks:
+      - template-network
+
+networks:
+  template-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
+  grafana_data:
+    driver: local
+  keycloak_data:
+    driver: local
+  image:
+    driver: local
